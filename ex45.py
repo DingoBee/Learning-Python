@@ -11,11 +11,11 @@ from os import system, name
 # For ceil
 import math
 # For the haggle
-import merchant_emotions
+import merchant_mood
 
 
 # Global variables - try to tidy later
-willing_tries = randint(2,5)
+willing_tries = randint(2,6)
 tries = 0
 pricing = 1.6
 
@@ -38,7 +38,79 @@ class Item(object):
     def __init__(self, name, price):
         self.name = name
         self.price = price
-        self.haggle_low = int(self.price * 0.75)
+        self.lowest_price = int(self.price * 0.75)
+
+
+class Barter(object):
+
+    # Used to match to merchant_mood speech
+    def barter_speech_check():
+        return int(math.ceil(((tries / willing_tries) * 100) / 10.0) * 10)
+
+
+    # Call at end to reset for next barter
+    def reset():
+        willing_tries = randint(2,5)
+        tries = 0
+        pricing = 1.6
+
+
+    def bartering(self, item, player, npc):
+
+        global tries, pricing, willing_tries
+        item_sold = False
+
+        while tries <= willing_tries:
+
+            pricing -= 0.3
+            latest_price = int(item.price * pricing)
+
+            offer = int(input("> "))
+            player.speak(f"How about {offer} gold?")
+
+            if offer < item.lowest_price:
+                if latest_price < item.lowest_price:
+                    npc.speak(f"Lowest I will go is {item.lowest_price}.")
+                    print(merchant_mood.merchant_mood[Barter.barter_speech_check()])
+                    tries += 1
+                    latest_price = item.lowest_price
+                else:
+                    npc.speak(f"Offer is to low. Try {latest_price}.")
+                    print(merchant_mood.merchant_mood[Barter.barter_speech_check()])
+                    tries += 1
+            elif offer >= item.lowest_price:
+                npc.speak("That'll do!")
+                item_sold = True
+                player.inventory.append(item.name)
+                break
+            else:
+                npc.speak("What was that?")
+
+        if tries >= willing_tries and item_sold == False:
+            if latest_price > item.lowest_price:
+                npc.speak(f"Last offer is {latest_price}")
+                offer = int(input("> "))
+                player.speak(f"How about {offer} gold?")
+                if offer >= latest_price:
+                    npc.speak("That'll do!")
+                    item_sold = True
+                    player.inventory.append(item.name)
+                else:
+                    npc.speak("Not going to happen. Leave.")
+            else:
+                npc.speak(f"Last offer is {item.lowest_price}")
+                offer = int(input("> "))
+                player.speak(f"How about {offer} gold?")
+                if offer >= latest_price:
+                    npc.speak("That'll do!")
+                    item_sold = True
+                    player.inventory.append(item.name)
+                else:
+                    npc.speak("Not going to happen. Leave.")
+        else:
+            pass
+
+        Barter.reset()
 
 
 class Charecter(object):
@@ -59,7 +131,7 @@ class Charecter(object):
         return attack_amount
 
     def speak (self, words):
-        print(f"{self.name}: {words}")
+        print(dedent(f"{self.name}: {words}"))
 
 
 class Player(Charecter):
@@ -229,7 +301,12 @@ class Tavern(object):
 
         merchant = Charecter("Merchant", 0, 0, 0)
         carrot = Item("Carrot", 50)
-        print("Buying a carrot test...")
+
+        print("\nThere are a limited number of tires to haggle (between 2 and 6), if you over stretch the merchant he wont sell you the item.\n")
+
+        main_player.speak("Hello, I would like to buy a carrot.")
+        merchant.speak(f"Ok, I have 1 carrot. It costs {int(carrot.price * pricing)} gold.")
+
         Barter.bartering(self, carrot, main_player, merchant)
 
 
@@ -321,69 +398,19 @@ class GameMap(object):
                     print("Sorry, I didn't get that! Try again...")
 
 
-class Barter(object):
-
-    def barter_chance():
-        return int(math.ceil(((tries / willing_tries) * 100) / 10.0) * 10)
-
-
-    def reset():
-        willing_tries = randint(2,5)
-        tries = 0
-        pricing = 1.6
-
-
-    def bartering(self, item, player, npc):
-
-        global tries, pricing, willing_tries
-        item_sold = False
-
-        while tries <= willing_tries:
-
-            pricing -= 0.3
-            latest_price = int(item.price * pricing)
-
-            offer = int(input("> "))
-            player.speak(f"How about {offer} gold?")
-
-            if offer < item.haggle_low:
-                if latest_price < item.haggle_low:
-                    npc.speak(f"Lowest I will go is {item.haggle_low}.")
-                    print(merchant_emotions.anger[Barter.barter_chance()])
-                    tries += 1
-                    latest_price = item.haggle_low
-                else:
-                    npc.speak(f"Offer is to low. Try {latest_price}.")
-                    print(merchant_emotions.anger[Barter.barter_chance()])
-                    tries += 1
-            elif offer >= item.haggle_low:
-                npc.speak("That'll do!")
-                item_sold = True
-                player.inventory.append(item.name)
-                break
-            else:
-                npc.speak("What was that?")
-
-        if tries >= willing_tries and item_sold == False:
-            print("Final price")
-        else:
-            pass
-
-        Barter.reset()
-
-
 # START of the game
-print(dedent("Hello, what's your name?"))
+narrator = Charecter("Narrator", 100, 50, 0)
+narrator.speak("Hello, what's your name?")
 player_name = input("Player Name: ")
 
 # PLAYER chooses what stat set they want to start with
-print(dedent("\nTell me about yourself?\n"))
+narrator.speak("\nTell me about yourself?\n")
 
-print(dedent("""
+narrator.speak("""
       Health - Reflects how much damage you can take. Default 100.\n
       Strength - The higher your strength the harder you can hit.\n
       Charisma - Talking to people can reveal secrets, the higher this stat the more likely people are to talk.\n
-      """))
+      """)
 
 print(dedent("I'm CAUTIOUS in what I do. Health + 50, Strength + 25, Charisma +25\n"))
 
@@ -406,12 +433,9 @@ while True:
     else:
         print("Sorry can you say that again. Are you CAUTIOUS, STRONG or CHARISMATIC?")
 
-print("These are your player stats. You can check out visited locations and your inventory as well. If you would like extra information on either a place or an item just type it into the console.")
+narrator.speak("These are your player stats. You can check out visited locations and your inventory as well. If you would like extra information on either a place or an item just type it into the console.")
 
 print("\n")
-
-# test_start = Castle()
-# test_start.start()
 
 test_start = Tavern()
 test_start.start()
