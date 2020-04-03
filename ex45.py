@@ -8,6 +8,16 @@ from time import sleep
 from sys import exit
 # For clear()
 from os import system, name
+# For ceil
+import math
+# For the haggle
+import merchant_emotions
+
+
+# Global variables - try to tidy later
+willing_tries = randint(2,5)
+tries = 0
+pricing = 1.6
 
 
 # Use to clear the screen of text (need to figure best use)
@@ -20,8 +30,15 @@ def clear():
 
 
 class Engine(object):
-    # DO I EVEN NEED THIS?
+    # DO I EVEN NEED THIS
     pass
+
+
+class Item(object):
+    def __init__(self, name, price):
+        self.name = name
+        self.price = price
+        self.haggle_low = int(self.price * 0.75)
 
 
 class Charecter(object):
@@ -40,6 +57,9 @@ class Charecter(object):
     def attack(self):
         attack_amount = randint(0, self.strength)
         return attack_amount
+
+    def speak (self, words):
+        print(f"{self.name}: {words}")
 
 
 class Player(Charecter):
@@ -207,6 +227,11 @@ class Tavern(object):
     def start(self):
         print("At the Tavern")
 
+        merchant = Charecter("Merchant", 0, 0, 0)
+        carrot = Item("Carrot", 50)
+        print("Buying a carrot test...")
+        Barter.bartering(self, carrot, main_player, merchant)
+
 
 class Woods(object):
 
@@ -296,6 +321,57 @@ class GameMap(object):
                     print("Sorry, I didn't get that! Try again...")
 
 
+class Barter(object):
+
+    def barter_chance():
+        return int(math.ceil(((tries / willing_tries) * 100) / 10.0) * 10)
+
+
+    def reset():
+        willing_tries = randint(2,5)
+        tries = 0
+        pricing = 1.6
+
+
+    def bartering(self, item, player, npc):
+
+        global tries, pricing, willing_tries
+        item_sold = False
+
+        while tries <= willing_tries:
+
+            pricing -= 0.3
+            latest_price = int(item.price * pricing)
+
+            offer = int(input("> "))
+            player.speak(f"How about {offer} gold?")
+
+            if offer < item.haggle_low:
+                if latest_price < item.haggle_low:
+                    npc.speak(f"Lowest I will go is {item.haggle_low}.")
+                    print(merchant_emotions.anger[Barter.barter_chance()])
+                    tries += 1
+                    latest_price = item.haggle_low
+                else:
+                    npc.speak(f"Offer is to low. Try {latest_price}.")
+                    print(merchant_emotions.anger[Barter.barter_chance()])
+                    tries += 1
+            elif offer >= item.haggle_low:
+                npc.speak("That'll do!")
+                item_sold = True
+                player.inventory.append(item.name)
+                break
+            else:
+                npc.speak("What was that?")
+
+        if tries >= willing_tries and item_sold == False:
+            print("Final price")
+        else:
+            pass
+
+        Barter.reset()
+
+
 # START of the game
 print(dedent("Hello, what's your name?"))
 player_name = input("Player Name: ")
@@ -334,5 +410,8 @@ print("These are your player stats. You can check out visited locations and your
 
 print("\n")
 
-test_start = Castle()
+# test_start = Castle()
+# test_start.start()
+
+test_start = Tavern()
 test_start.start()
